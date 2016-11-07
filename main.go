@@ -128,10 +128,10 @@ func streamJSON(conf *Config) error {
 	r := bufio.NewReader(conf.In)
 	for {
 		txt, rerr := readJSON(r)
-		if rerr != nil && txt == "" {
+		if rerr != nil && txt == nil {
 			return rerr
 		}
-		o, err := blue.Line(strings.NewReader(txt), blue.Options{
+		o, err := blue.Line(txt, blue.Options{
 			IsTag:         conf.IsTag,
 			IsField:       conf.IsField,
 			IsMeasurement: conf.IsMeasurement,
@@ -139,6 +139,9 @@ func streamJSON(conf *Config) error {
 		})
 		if err != nil {
 			return err
+		}
+		if o.Name == "" {
+			continue
 		}
 		fmt.Fprintln(conf.Out, o)
 		if rerr == io.EOF {
@@ -151,10 +154,10 @@ func streamJSON(conf *Config) error {
 func renderJSON(conf *Config) error {
 	r := bufio.NewReader(conf.In)
 	txt, err := readJSON(r)
-	if err != nil && txt == "" {
+	if err != nil && txt == nil {
 		return err
 	}
-	o, err := blue.Line(strings.NewReader(txt), blue.Options{
+	o, err := blue.Line(txt, blue.Options{
 		IsTag:         conf.IsTag,
 		IsField:       conf.IsField,
 		IsMeasurement: conf.IsMeasurement,
@@ -163,7 +166,7 @@ func renderJSON(conf *Config) error {
 	return nil
 }
 
-func readJSON(r *bufio.Reader) (string, error) {
+func readJSON(r *bufio.Reader) ([]byte, error) {
 	var buf bytes.Buffer
 	var rerr error
 	open := 0
@@ -174,7 +177,7 @@ func readJSON(r *bufio.Reader) (string, error) {
 				rerr = err
 				break
 			}
-			return "", err
+			return nil, err
 		}
 		if buf.Len() > 0 && open == 0 {
 			break
@@ -196,9 +199,9 @@ func readJSON(r *bufio.Reader) (string, error) {
 		}
 	}
 	if open != 0 {
-		return "", errors.New("failed to find json string")
+		return nil, errors.New("failed to find json string")
 	}
-	return buf.String(), rerr
+	return buf.Bytes(), rerr
 }
 
 func streamLine(ctx *cli.Context) error {
