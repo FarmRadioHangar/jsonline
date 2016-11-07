@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 
@@ -45,9 +46,14 @@ func main() {
 	}
 	app.Action = line
 	app.Version = version
-	app.Run(os.Args)
+	err := app.Run(os.Args)
+	if err != nil {
+		log.Fatalf("jsonline: %v", err)
+	}
 }
 
+//Config is the configuration setting for jsonline. This can be decoded from a
+//json string.
 type Config struct {
 	Out         io.Writer
 	In          io.Reader
@@ -64,9 +70,12 @@ func defaultConfig() *Config {
 	}
 }
 
+//IsTag implements the Tag filetring function.
 func (c *Config) IsTag(key string) bool {
 	return false
 }
+
+//IsField implements field filtern function
 func (c *Config) IsField(key string) bool {
 	s := strings.Split(key, "_")
 	if len(s) > 0 {
@@ -78,7 +87,9 @@ func (c *Config) IsField(key string) bool {
 	return false
 }
 
-func (c *Config) Ismeasurement(key string, value interface{}) (string, bool) {
+//IsMeasurement implements Measurement filtering function. This function is used
+//to determine measurement name if the name is not provided yet.
+func (c *Config) IsMeasurement(key string, value interface{}) (string, bool) {
 	if key == c.Measurement {
 		return "", false
 	}
@@ -132,7 +143,9 @@ func line(ctx *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		defer func() {
+			_ = f.Close()
+		}()
 		conf.Out = f
 	} else {
 		if conf.OutFile != "" {
@@ -140,7 +153,9 @@ func line(ctx *cli.Context) error {
 			if err != nil {
 				return err
 			}
-			defer f.Close()
+			defer func() {
+				_ = f.Close()
+			}()
 			conf.Out = f
 		}
 	}
@@ -168,13 +183,7 @@ func line(ctx *cli.Context) error {
 }
 
 func streamJSON(conf *Config) error {
-	//fmt.Println("streaming json")
 	r := bufio.NewReader(conf.In)
-	//b, err := ioutil.ReadAll(conf.In)
-	//if err != nil {
-	//return err
-	//}
-	//fmt.Println(string(b))
 	for {
 		txt, rerr := readJSON(r)
 		if rerr != nil && txt == "" {
@@ -183,7 +192,7 @@ func streamJSON(conf *Config) error {
 		o, err := blue.Line(strings.NewReader(txt), blue.Options{
 			IsTag:         conf.IsTag,
 			IsField:       conf.IsField,
-			IsMeasurement: conf.Ismeasurement,
+			IsMeasurement: conf.IsMeasurement,
 		})
 		if err != nil {
 			return err
@@ -205,7 +214,7 @@ func renderJSON(conf *Config) error {
 	o, err := blue.Line(strings.NewReader(txt), blue.Options{
 		IsTag:         conf.IsTag,
 		IsField:       conf.IsField,
-		IsMeasurement: conf.Ismeasurement,
+		IsMeasurement: conf.IsMeasurement,
 	})
 	fmt.Fprintln(conf.Out, o)
 	return nil
@@ -229,18 +238,18 @@ func readJSON(r *bufio.Reader) (string, error) {
 		}
 		switch ch {
 		case '{':
-			buf.WriteRune(ch)
+			_, _ = buf.WriteRune(ch)
 			open++
 			continue
 		case '}':
-			buf.WriteRune(ch)
+			_, _ = buf.WriteRune(ch)
 			open--
 			continue
 		default:
 			if open == 0 && buf.Len() == 0 {
 				continue
 			}
-			buf.WriteRune(ch)
+			_, _ = buf.WriteRune(ch)
 		}
 	}
 	if open != 0 {
