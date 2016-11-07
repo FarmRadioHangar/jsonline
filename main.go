@@ -28,9 +28,9 @@ func main() {
 			Aliases: []string{"s"},
 			Usage:   "streams from  stdin",
 			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "name",
-					Usage: "The name of the measurement",
+				cli.StringSliceFlag{
+					Name:  "names",
+					Usage: "The names of the measurement",
 				},
 			},
 			Action: streamLine,
@@ -45,13 +45,12 @@ func main() {
 //Config is the configuration setting for jsonline. This can be decoded from a
 //json string.
 type Config struct {
-	Out         io.Writer
-	In          io.Reader
-	Tags        []string `json:"tags"`
-	Fields      []string `json:"fields"`
-	Measurement string   `json:"metric"`
-	OutFile     string   `json:"output_file"`
-	Append      bool     `json:"append"`
+	Out          io.Writer
+	In           io.Reader
+	Tags         []string `json:"tags"`
+	Fields       []string `json:"fields"`
+	Measurements []string `json:"metric"`
+	OutFile      string   `json:"output_file"`
 }
 
 func defaultConfig() *Config {
@@ -95,20 +94,29 @@ func (c *Config) IsField(key string) bool {
 //IsMeasurement implements Measurement filtering function. This function is used
 //to determine measurement name if the name is not provided yet.
 func (c *Config) IsMeasurement(key string, value interface{}) (string, bool) {
-	if key == c.Measurement {
-		return "", false
+	if c.hasMeasurement(key) {
+		return key, true
 	}
 	s := strings.Split(key, "_")
 	if len(s) > 1 {
 		if s[0] != "values" {
 			return "", false
 		}
-		if s[1] != c.Measurement {
+		if !c.hasMeasurement(s[1]) {
 			return "", false
 		}
 		return s[1], true
 	}
 	return "", false
+}
+
+func (c *Config) hasMeasurement(key string) bool {
+	for _, v := range c.Measurements {
+		if v == key {
+			return true
+		}
+	}
+	return false
 }
 
 func streamJSON(conf *Config) error {
@@ -190,12 +198,12 @@ func readJSON(r *bufio.Reader) (string, error) {
 
 func streamLine(ctx *cli.Context) error {
 	cfg := &Config{}
-	name := ctx.String("name")
-	if name == "" {
-		return errors.New("missng name of the measurement use the --name flag")
+	names := ctx.StringSlice("names")
+	if names == nil {
+		return errors.New("missng name of the measurement use the --names flag")
 	}
-	cfg.Measurement = name
 	cfg.In = os.Stdin
 	cfg.Out = os.Stdout
+	cfg.Measurements = names
 	return streamJSON(cfg)
 }
