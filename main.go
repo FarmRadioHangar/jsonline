@@ -210,20 +210,22 @@ func streamLine(ctx *cli.Context) error {
 	cfg.In = os.Stdin
 	cfg.Out = os.Stdout
 	pipe := ctx.String("pipe")
+	cfg.Measurements = names
 	if pipe != "" {
 		err := syscall.Mkfifo(pipe, 0666)
 		if err != nil {
-			return nil
+			if !os.IsExist(err) {
+				return err
+			}
 		}
-		f, err := os.Open(pipe)
+		f, err := os.OpenFile(pipe, os.O_WRONLY, os.ModeNamedPipe)
 		if err != nil {
-			return nil
+			return err
 		}
 		defer func() {
 			_ = f.Close()
 		}()
 		cfg.Out = f
 	}
-	cfg.Measurements = names
 	return streamJSON(cfg)
 }
