@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gernest/blue"
@@ -31,6 +32,10 @@ func main() {
 				cli.StringSliceFlag{
 					Name:  "names",
 					Usage: "The names of the measurement",
+				},
+				cli.StringFlag{
+					Name:  "pipe",
+					Usage: "creates a named pipe and writes output to it",
 				},
 			},
 			Action: streamLine,
@@ -204,6 +209,21 @@ func streamLine(ctx *cli.Context) error {
 	}
 	cfg.In = os.Stdin
 	cfg.Out = os.Stdout
+	pipe := ctx.String("pipe")
+	if pipe != "" {
+		err := syscall.Mkfifo(pipe, 0666)
+		if err != nil {
+			return nil
+		}
+		f, err := os.Open(pipe)
+		if err != nil {
+			return nil
+		}
+		defer func() {
+			_ = f.Close()
+		}()
+		cfg.Out = f
+	}
 	cfg.Measurements = names
 	return streamJSON(cfg)
 }
