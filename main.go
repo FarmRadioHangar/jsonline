@@ -3,11 +3,9 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -16,36 +14,27 @@ import (
 	"github.com/urfave/cli"
 )
 
-const version = "0.1.0"
+const version = "0.1.1"
 
 func main() {
 	app := cli.NewApp()
 	app.Name = "jsonline"
-	app.Usage = "translates jsonobjects to influxdb line protocol"
-	app.Flags = []cli.Flag{
-		cli.StringFlag{
-			Name:  "config",
-			Usage: "cofniguration file",
-		},
-		cli.StringFlag{
-			Name:  "input",
-			Usage: "json input",
-		},
-		cli.BoolFlag{
-			Name:  "append",
-			Usage: "appends to the output file, you need to speficy output file",
-		},
-		cli.BoolFlag{
-			Name:  "stream",
-			Usage: "reads from input stream",
-		},
-		cli.StringFlag{
-			Name:  "out",
-			Usage: "the output file",
+	app.Usage = "translates json objects to influxdb line protocol"
+	app.Version = version
+	app.Commands = []cli.Command{
+		{
+			Name:    "stream",
+			Aliases: []string{"s"},
+			Usage:   "streams from  stdin",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "name",
+					Usage: "The name of the measurement",
+				},
+			},
+			Action: streamLine,
 		},
 	}
-	app.Action = line
-	app.Version = version
 	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatalf("jsonline: %v", err)
@@ -104,82 +93,6 @@ func (c *Config) IsMeasurement(key string, value interface{}) (string, bool) {
 		return s[1], true
 	}
 	return "", false
-}
-
-func line(ctx *cli.Context) error {
-	var conf *Config
-	outFile := ctx.String("out")
-	cfg := ctx.String("config")
-	append := ctx.Bool("append")
-	stream := ctx.Bool("stream")
-	if cfg != "" {
-		d, err := ioutil.ReadFile(cfg)
-		if err != nil {
-			return err
-		}
-		c := &Config{}
-		err = json.Unmarshal(d, c)
-		if err != nil {
-			return err
-		}
-
-		conf = c
-	} else {
-		conf = defaultConfig()
-		conf.Append = append
-	}
-	if conf.OutFile == "" {
-		if outFile != "" {
-			conf.OutFile = outFile
-		}
-	}
-	conf.Measurement = "websocket"
-
-	if conf.Append {
-		if conf.OutFile == "" {
-			return errors.New("you must specify -out flag to to use append")
-		}
-		f, err := os.OpenFile(conf.OutFile, os.O_APPEND|os.O_WRONLY, 0600)
-		if err != nil {
-			return err
-		}
-		defer func() {
-			_ = f.Close()
-		}()
-		conf.Out = f
-	} else {
-		if conf.OutFile != "" {
-			f, err := os.OpenFile(conf.OutFile, os.O_WRONLY, 0600)
-			if err != nil {
-				return err
-			}
-			defer func() {
-				_ = f.Close()
-			}()
-			conf.Out = f
-		}
-	}
-	in := ctx.String("input")
-	switch in {
-	case "stdin":
-		conf.In = os.Stdin
-	case "file":
-	case "":
-		if ctx.NArg() > 0 {
-			args := ctx.Args()
-			conf.In = strings.NewReader(args.First())
-		} else {
-			conf.In = os.Stdin
-		}
-
-	}
-	if conf.In != nil {
-		if stream {
-			return streamJSON(conf)
-		}
-		return renderJSON(conf)
-	}
-	return errors.New("missing input")
 }
 
 func streamJSON(conf *Config) error {
@@ -256,4 +169,16 @@ func readJSON(r *bufio.Reader) (string, error) {
 		return "", errors.New("failed to find json string")
 	}
 	return buf.String(), rerr
+}
+
+func streamLine(ctx *cli.Context) error {
+	cfg := &Config{}
+	name := ctx.String("name")
+	if name == "" {
+		return errors.New("missng name of the measurement use the --name flag")
+	}
+	cfg.Measurement = name
+	cfg.In = os.Stdin
+	cfg.Out = os.Stdout
+	return streamJSON(cfg)
 }
