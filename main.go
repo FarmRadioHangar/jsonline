@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gernest/blue"
 	"github.com/urfave/cli"
@@ -64,6 +65,21 @@ func (c *Config) IsTag(key string) bool {
 	return false
 }
 
+// IsTimeStamp gives the measurement timestamp
+func (c *Config) IsTimeStamp(key string, value interface{}) (time.Time, bool) {
+	if key == "" {
+		return time.Time{}, false
+	}
+	low := strings.ToLower(key)
+	if low == "timestamp" {
+		if ms, ok := value.(float64); ok {
+			ns := int64(ms) * int64(time.Millisecond)
+			return time.Unix(0, ns), true
+		}
+	}
+	return time.Time{}, false
+}
+
 //IsField implements field filtern function
 func (c *Config) IsField(key string) bool {
 	s := strings.Split(key, "_")
@@ -106,6 +122,7 @@ func streamJSON(conf *Config) error {
 			IsTag:         conf.IsTag,
 			IsField:       conf.IsField,
 			IsMeasurement: conf.IsMeasurement,
+			IsTimeStamp:   conf.IsTimeStamp,
 		})
 		if err != nil {
 			return err
