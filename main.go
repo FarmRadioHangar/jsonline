@@ -65,7 +65,7 @@ func defaultConfig() *Config {
 
 //IsTag implements the Tag filetring function.
 func (c *Config) IsTag(key string) bool {
-	return false
+	return strings.HasPrefix(key, "metadata")
 }
 
 // IsTimeStamp gives the measurement timestamp
