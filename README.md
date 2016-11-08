@@ -7,9 +7,18 @@ protocol compatible strings to stdout.
 You can use this by piping logs with json strings to this app like
 
 ```shell
-tail -f /var/log/example.logg |jsonline --name happy
+tail -f /var/log/example.log |jsonline --name happy
 ```
 
+# Installation
+
+[download pre compiled binaries ](https://github.com/FarmRadioHangar/jsonline/releases)
+OR
+
+If you have go installed
+```shell
+go get github.com/FarmRadioHangar/jsonline
+```
 ## usage
 ```shell
 NAME:
