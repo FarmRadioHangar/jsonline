@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -166,42 +165,10 @@ func renderJSON(conf *Config) error {
 	return nil
 }
 
+//reads a line of json string iput. This assumes the input has a json string
+//which ends with a newline.
 func readJSON(r *bufio.Reader) ([]byte, error) {
-	var buf bytes.Buffer
-	var rerr error
-	open := 0
-	for {
-		ch, _, err := r.ReadRune()
-		if err != nil {
-			if err == io.EOF {
-				rerr = err
-				break
-			}
-			return nil, err
-		}
-		if buf.Len() > 0 && open == 0 {
-			break
-		}
-		switch ch {
-		case '{':
-			_, _ = buf.WriteRune(ch)
-			open++
-			continue
-		case '}':
-			_, _ = buf.WriteRune(ch)
-			open--
-			continue
-		default:
-			if open == 0 && buf.Len() == 0 {
-				continue
-			}
-			_, _ = buf.WriteRune(ch)
-		}
-	}
-	if open != 0 {
-		return nil, errors.New("failed to find json string")
-	}
-	return buf.Bytes(), rerr
+	return r.ReadBytes('\n')
 }
 
 func streamLine(ctx *cli.Context) error {
@@ -221,7 +188,7 @@ func streamLine(ctx *cli.Context) error {
 				return err
 			}
 		}
-		f, err := os.OpenFile(pipe, os.O_WRONLY, os.ModeNamedPipe)
+		f, err := os.OpenFile(pipe, os.O_WRONLY|os.O_APPEND, os.ModeNamedPipe)
 		if err != nil {
 			return err
 		}
