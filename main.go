@@ -64,8 +64,14 @@ func defaultConfig() *Config {
 }
 
 //IsTag implements the Tag filetring function.
-func (c *Config) IsTag(key string) bool {
-	return strings.HasPrefix(key, "metadata")
+func (c *Config) IsTag(key string) (string, bool) {
+
+	pref := "metadata_"
+	if strings.HasPrefix(key, pref) {
+		k := strings.TrimPrefix(key, pref)
+		return k, true
+	}
+	return "", false
 }
 
 // IsTimeStamp gives the measurement timestamp
