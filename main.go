@@ -156,21 +156,6 @@ func streamJSON(conf *Config) error {
 	return nil
 }
 
-func renderJSON(conf *Config) error {
-	r := bufio.NewReader(conf.In)
-	txt, err := readJSON(r)
-	if err != nil && txt == nil {
-		return err
-	}
-	o, err := blue.Line(txt, blue.Options{
-		IsTag:         conf.IsTag,
-		IsField:       conf.IsField,
-		IsMeasurement: conf.IsMeasurement,
-	})
-	fmt.Fprintln(conf.Out, o)
-	return nil
-}
-
 //reads a line of json string iput. This assumes the input has a json string
 //which ends with a newline.
 func readJSON(r *bufio.Reader) ([]byte, error) {
