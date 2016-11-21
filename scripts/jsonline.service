@@ -4,7 +4,7 @@ After=run-user-0.mount
 
 [Service]
 Type=simple
-ExecStart=/bin/sh -c "/usr/bin/tail -n 0 -f /home/fri/fessbox/backend-node/log/app.log | /usr/bin/jsonline s --names websocket --names message >> /run/log/fessbox/voxbox.log"
+ExecStart=/bin/sh -c "/usr/bin/tail -n 0 -f /home/fri/fessbox/backend-node/log/app.log | /usr/local/bin/jsonline s --names websocket --names message >> /run/log/fessbox/voxbox.log"
 Restart=on-failure
 RestartSec=30
 
